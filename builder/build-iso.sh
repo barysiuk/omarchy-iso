@@ -109,8 +109,9 @@ if [[ -d /omarchy-repo ]]; then
     cp "$PACMAN_ONLINE_CONF" "/tmp/pacman-online-${OMARCHY_MIRROR}.conf"
     PACMAN_ONLINE_CONF="/tmp/pacman-online-${OMARCHY_MIRROR}.conf"
   fi
-  sed -i '/^\[omarchy\]$/,/^$/ s|^Server = .*|Server = file:///omarchy-repo|' "$PACMAN_ONLINE_CONF"
-  echo "local repo: [omarchy] served from file:///omarchy-repo"
+  bash /builder/local-repo-config.sh "$PACMAN_ONLINE_CONF" > "$PACMAN_ONLINE_CONF.local"
+  mv "$PACMAN_ONLINE_CONF.local" "$PACMAN_ONLINE_CONF"
+  echo "local repo: [omarchy] takes precedence, served from file:///omarchy-repo"
   ls /omarchy-repo/omarchy.db >/dev/null
 fi
 

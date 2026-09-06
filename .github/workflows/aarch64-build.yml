@@ -57,6 +57,7 @@ jobs:
           sudo apt-get install -y -qq python3-yaml zstd
           bash test/unit/arch-package-filter-test.sh
           python3 -m unittest discover -s test/unit -p test_offline_mirror_pruning.py
+          python3 -m unittest discover -s test/unit -p test_local_repo_config.py
           bash sources/omarchy/test/shell.d/snapdragon-hardware-test.sh
           bash sources/omarchy/test/shell.d/yoga-slim7x-hardware-test.sh
           python3 -m unittest discover -s sources/omarchy-pkgs/test
