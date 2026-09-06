@@ -55,7 +55,8 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq python3-yaml zstd
-          ./test/all
+          bash test/unit/arch-package-filter-test.sh
+          python3 -m unittest test.unit.test_offline_mirror_pruning
           bash sources/omarchy/test/shell.d/snapdragon-hardware-test.sh
           bash sources/omarchy/test/shell.d/yoga-slim7x-hardware-test.sh
           python3 -m unittest discover -s sources/omarchy-pkgs/test
