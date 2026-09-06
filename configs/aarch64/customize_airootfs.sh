@@ -53,7 +53,15 @@ if [[ ! -s /boot/initramfs-linux-aarch64.img ]]; then
 fi
 echo "customize_airootfs: initramfs present ($(stat -c %s /boot/initramfs-linux-aarch64.img) bytes)"
 
-# Build the DTB-carrying UKI before mkarchiso clears /boot.
+# linux-aarch64 build #12 did not ship this upstream Surface tree.  Keep a
+# package-provided copy when one becomes available rather than pinning it.
+surface_dtb=/boot/dtbs/qcom/x1p42100-microsoft-sp12in.dtb
+if [[ ! -e $surface_dtb ]]; then
+  install -Dm644 /root/surface-pro-12in.dtb "$surface_dtb"
+  echo "customize_airootfs: staged Surface Pro 12in DTB fallback"
+fi
+
+# Build the DTB-carrying UKIs before mkarchiso clears /boot.
 /root/live-uki.sh || exit 1
 
 exit 0

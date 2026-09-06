@@ -1,0 +1,20 @@
+# Surface Pro 12in diagnostic DTB
+
+`surface-pro-12in.dtb` is the known-working Surface Pro 12in 1st Edition
+device tree used solely as a live-media fallback until the selected
+`linux-aarch64` package ships
+`x1p42100-microsoft-sp12in.dtb`.  It is staged only when that package does
+not provide its own tree; a package-provided tree is never replaced.
+
+Provenance: copied without modification from
+<https://github.com/harrisonvanderbyl/surface-pro-12-inch-linux>, commit
+`ea0f07e66beea95898d96fbeb6daa472f4735af3`, path `boot/dtb`, retrieved for
+the Surface live-boot investigation.  Its SHA-256 is
+`d7ed4b073c7344cb0bb2c3f7d00655df60b473588a5c0364af54537dc2c672c7`.
+The matching upstream source is Linux
+`arch/arm64/boot/dts/qcom/x1p42100-microsoft-sp12in.dts`, SPDX GPL-2.0-only.
+
+The source repository does not state a license for its prebuilt `boot/dtb`.
+Before promoting this diagnostic fallback beyond this contribution/testing
+branch, confirm that the binary is redistributable under the upstream DTS
+license (or replace it with a reproducible build from the upstream source).

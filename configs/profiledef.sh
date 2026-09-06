@@ -65,4 +65,6 @@ if [[ $arch == aarch64 ]]; then
   file_permissions["/etc/mkinitcpio.d/linux.preset"]="0:0:644"
   file_permissions["/root/customize_airootfs.sh"]="0:0:755"
   file_permissions["/root/live-uki.sh"]="0:0:755"
+  file_permissions["/root/surface-pro-12in.dtb"]="0:0:644"
+  file_permissions["/root/surface-pro-12in-hwid.json"]="0:0:644"
 fi
