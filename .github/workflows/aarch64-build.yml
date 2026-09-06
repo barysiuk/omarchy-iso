@@ -22,7 +22,7 @@ jobs:
         linux-aarch64-pkgbase-shim qcom-firmware-extract omarchy-settings omarchy omarchy-nvim
         aether cliamp herdr localsend-bin mise-bin omacalc omacut omawrite omarchy-chromium-bin
         ttfx yay tobi-try ttf-ia-writer ufw-docker xdg-terminal-exec yaru-icon-theme
-        tzupdate tensaku hyprland-preview-share-picker
+        tzupdate tensaku hyprtoolkit hyprland-guiutils hyprland hyprland-preview-share-picker
 
   build-iso:
     needs: packages
