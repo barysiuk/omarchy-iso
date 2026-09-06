@@ -5,10 +5,6 @@ name: aarch64 ISO Build
 on:
   workflow_dispatch:
     inputs:
-      pkgs_ref:
-        description: "omarchy-pkgs branch, tag or SHA to build the [omarchy] repo from"
-        type: string
-        default: master
       iso_make_args:
         description: "Extra bin/omarchy-iso-make arguments (e.g. --edge)"
         type: string
@@ -16,10 +12,10 @@ on:
 
 jobs:
   packages:
-    uses: omacom/omarchy-pkgs/.github/workflows/build-aarch64.yml@master
+    uses: birkskyum/omarchy-pkgs/.github/workflows/build-aarch64.yml@5a946d8612cd75d2bc854f1f76efeb83d8fe474b
     with:
-      pkgs_repository: omacom/omarchy-pkgs
-      pkgs_ref: ${{ inputs.pkgs_ref || 'master' }}
+      pkgs_repository: birkskyum/omarchy-pkgs
+      pkgs_ref: 5a946d8612cd75d2bc854f1f76efeb83d8fe474b
       # Packages installed from the local aarch64 Omarchy repository.
       packages: >-
         omarchy-keyring ttf-jetbrains-mono-nerd-basic limine-mkinitcpio-hook limine-snapper-sync
@@ -39,6 +35,41 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: true
+
+      - name: Checkout pinned runtime
+        uses: actions/checkout@v4
+        with:
+          repository: birkskyum/omarchy
+          ref: 7efd49458113b26f4b3d49fc486889529b639070
+          fetch-depth: 0
+          path: sources/omarchy
+
+      - name: Checkout pinned package recipes
+        uses: actions/checkout@v4
+        with:
+          repository: birkskyum/omarchy-pkgs
+          ref: 5a946d8612cd75d2bc854f1f76efeb83d8fe474b
+          path: sources/omarchy-pkgs
+
+      - name: Test integration sources
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq python3-yaml zstd
+          ./test/all
+          bash sources/omarchy/test/shell.d/snapdragon-hardware-test.sh
+          bash sources/omarchy/test/shell.d/yoga-slim7x-hardware-test.sh
+          python3 -m unittest discover -s sources/omarchy-pkgs/test
+
+      - name: Record build sources
+        run: |
+          mkdir -p configs/airootfs/usr/share/omarchy-iso
+          {
+            echo "iso_commit=$(git rev-parse HEAD)"
+            echo "runtime_commit=$(git -C sources/omarchy rev-parse HEAD)"
+            echo "packages_commit=$(git -C sources/omarchy-pkgs rev-parse HEAD)"
+            echo "build_run=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "purpose=Snapdragon PR integration live-USB test, not a stock release"
+          } | tee configs/airootfs/usr/share/omarchy-iso/build-info
 
       - name: Runner facts
         run: |
@@ -75,7 +106,8 @@ jobs:
           re='^[A-Za-z0-9 ._=/-]*$'
           [[ $ISO_MAKE_ARGS =~ $re ]] || { echo "invalid iso_make_args" >&2; exit 1; }
           start=$(date +%s)
-          NO_BOOT_OFFER=1 ./bin/omarchy-iso-make --keep-pkg-cache --local-repo "$PWD/omarchy-repo" $ISO_MAKE_ARGS
+          NO_BOOT_OFFER=1 ./bin/omarchy-iso-make --keep-pkg-cache --local-repo "$PWD/omarchy-repo" \
+            --local-source "$PWD/sources/omarchy" "$PWD/sources/omarchy-pkgs" $ISO_MAKE_ARGS
           echo "ISO build wall-clock: $(( $(date +%s) - start ))s"
 
       - name: Inspect ISO
@@ -99,4 +131,4 @@ jobs:
           name: omarchy-iso-aarch64-${{ github.run_number }}
           path: ./release/*.iso
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 7
