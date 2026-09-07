@@ -12,10 +12,10 @@ on:
 
 jobs:
   packages:
-    uses: barysiuk/omarchy-pkgs/.github/workflows/build-aarch64.yml@0d05f7f60c5ce770c7f6c4ba1436780870ac5f7e
+    uses: barysiuk/omarchy-pkgs/.github/workflows/build-aarch64.yml@db1f9777c16c3c7b5a460d0ad246b9437f398875
     with:
       pkgs_repository: barysiuk/omarchy-pkgs
-      pkgs_ref: 0d05f7f60c5ce770c7f6c4ba1436780870ac5f7e
+      pkgs_ref: db1f9777c16c3c7b5a460d0ad246b9437f398875
       # Packages installed from the local aarch64 Omarchy repository.
       packages: >-
         omarchy-keyring ttf-jetbrains-mono-nerd-basic limine-mkinitcpio-hook limine-snapper-sync
@@ -48,7 +48,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: barysiuk/omarchy-pkgs
-          ref: 0d05f7f60c5ce770c7f6c4ba1436780870ac5f7e
+          ref: db1f9777c16c3c7b5a460d0ad246b9437f398875
           path: sources/omarchy-pkgs
 
       - name: Test integration sources
@@ -159,6 +159,7 @@ jobs:
             grep -Fqx 'MKINITCPIO_UKI_OPTIONS="--ukiconfig /etc/kernel/uki-surface-pro-12.conf"' /tmp/omarchy-surface-pkg/etc/limine-entry-tool.d/90-omarchy-surface-pro-12.conf
             test -f /tmp/omarchy-surface-pkg/etc/kernel/uki-surface-pro-12.conf
             grep -Fqx 'DeviceTree=/usr/lib/omarchy-surface-pro-12/x1p42100-microsoft-sp12in.dtb' /tmp/omarchy-surface-pkg/etc/kernel/uki-surface-pro-12.conf
+            grep -Fqx 'HWIDs=' /tmp/omarchy-surface-pkg/etc/kernel/uki-surface-pro-12.conf
             test -f /tmp/omarchy-surface-pkg/etc/mkinitcpio.conf.d/90-omarchy-surface-pro-12-sd-encrypt.conf
             grep -Fqx 'HOOKS=(${HOOKS[@]/filesystems/sd-encrypt filesystems})' /tmp/omarchy-surface-pkg/etc/mkinitcpio.conf.d/90-omarchy-surface-pro-12-sd-encrypt.conf
             # mkinitcpio concatenates base config then lexically sorted drop-ins.
@@ -171,6 +172,7 @@ jobs:
             grep -Fq 'rd.luks.name=' /tmp/omarchy-iso-root/usr/share/omarchy-iso/orchestrator/phases_impl.py
             grep -Fqx 'KERNEL_CMDLINE[default]+="initramfs_async=0 clk_ignore_unused pd_ignore_unused arm64.nopauth"' /tmp/omarchy-surface-pkg/etc/limine-entry-tool.d/90-omarchy-surface-pro-12.conf
             test -x /tmp/omarchy-surface-pkg/etc/boot/hooks/pre.d/95-omarchy-surface-pro-12
+            grep -Fqx 'rm -f /etc/mkinitcpio.conf.d/surface_device_modules.conf' /tmp/omarchy-surface-pkg/etc/boot/hooks/pre.d/95-omarchy-surface-pro-12
             test -f /tmp/omarchy-settings-pkg/usr/share/omarchy/default/limine/default.conf
             test -f /tmp/omarchy-settings-pkg/usr/share/omarchy/default/limine/limine.conf
             grep -Fq 'ENABLE_UKI=yes' /tmp/omarchy-iso-root/usr/share/omarchy-iso/orchestrator/phases_impl.py
