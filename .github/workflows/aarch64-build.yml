@@ -12,10 +12,10 @@ on:
 
 jobs:
   packages:
-    uses: barysiuk/omarchy-pkgs/.github/workflows/build-aarch64.yml@bb6a772b300a7b45cd5db3851a93cd6f29845c64
+    uses: barysiuk/omarchy-pkgs/.github/workflows/build-aarch64.yml@9fcca9a6b5bead511250987cd0ad074cfbb6af00
     with:
       pkgs_repository: barysiuk/omarchy-pkgs
-      pkgs_ref: bb6a772b300a7b45cd5db3851a93cd6f29845c64
+      pkgs_ref: 9fcca9a6b5bead511250987cd0ad074cfbb6af00
       # Packages installed from the local aarch64 Omarchy repository.
       packages: >-
         omarchy-keyring ttf-jetbrains-mono-nerd-basic limine-mkinitcpio-hook limine-snapper-sync
@@ -48,7 +48,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: barysiuk/omarchy-pkgs
-          ref: bb6a772b300a7b45cd5db3851a93cd6f29845c64
+          ref: 9fcca9a6b5bead511250987cd0ad074cfbb6af00
           path: sources/omarchy-pkgs
 
       - name: Test integration sources
