@@ -137,7 +137,10 @@ jobs:
             rm -rf /tmp/omarchy-iso-root /tmp/omarchy-surface-pkg /tmp/omarchy-settings-pkg /tmp/omarchy-offline-db
             xorriso -osirrox on -indev "$iso" \
               -extract /arch/aarch64/airootfs.sfs /tmp/omarchy-airootfs.sfs >/dev/null
-            unsquashfs -d /tmp/omarchy-iso-root /tmp/omarchy-airootfs.sfs >/dev/null
+            # Hosted runners extract as an unprivileged user. Do not attempt
+            # to restore privileged filesystem xattrs (for example newgidmap),
+            # which makes unsquashfs return 2 after extracting valid contents.
+            unsquashfs -no-xattrs -d /tmp/omarchy-iso-root /tmp/omarchy-airootfs.sfs >/dev/null
             offline=/tmp/omarchy-iso-root/var/cache/omarchy/mirror/offline
             test -f "$offline/offline.db.tar.gz"
             mkdir -p /tmp/omarchy-offline-db /tmp/omarchy-surface-pkg /tmp/omarchy-settings-pkg
