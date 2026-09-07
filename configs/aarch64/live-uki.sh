@@ -81,10 +81,7 @@ if (( n_dtb != ${#dtbs[@]} )); then
   echo "live-uki: $uki has $n_dtb .dtbauto sections, expected ${#dtbs[@]}" >&2
   exit 1
 fi
-if ! strings "$uki" | grep -qx 'microsoft,surface-pro-12in'; then
-  echo "live-uki: Surface Pro 12in compatible is absent from $uki" >&2
-  exit 1
-fi
+/root/verify-surface-uki.py "$uki"
 
 # GRUB cannot attach a DTB while chainloading a UKI.  This second image has a
 # fixed DTB for an explicitly selected, verbose Surface-only diagnostic boot.
@@ -93,10 +90,6 @@ ukify build \
   --initrd="$initrd" \
   --devicetree="$surface_dtb" \
   --output="$surface_uki"
-surface_sections="$(ukify inspect "$surface_uki")"
-if ! grep -q '^\.dtb:' <<<"$surface_sections"; then
-  echo "live-uki: $surface_uki has no fixed .dtb section" >&2
-  exit 1
-fi
+/root/verify-surface-uki.py --diagnostic "$surface_uki"
 echo "live-uki: $uki: $(stat -c %s "$uki") bytes, $n_dtb .dtbauto sections, .hwids present"
 echo "live-uki: $surface_uki: fixed Surface Pro 12in diagnostic DTB"

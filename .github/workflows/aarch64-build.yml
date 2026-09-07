@@ -116,7 +116,7 @@ jobs:
 
       - name: Inspect ISO
         run: |
-          sudo apt-get install -y -qq binutils xorriso >/dev/null
+          sudo apt-get install -y -qq xorriso >/dev/null
           ls -l release/
           for iso in release/*.iso; do
             echo "== $iso"
@@ -130,19 +130,8 @@ jobs:
               -extract /arch/boot/aarch64/omarchy-live.efi /tmp/omarchy-live.efi >/dev/null
             xorriso -osirrox on -indev "$iso" \
               -extract /arch/boot/aarch64/omarchy-surface-pro-12in-debug.efi /tmp/omarchy-surface-debug.efi >/dev/null
-            objdump -h /tmp/omarchy-live.efi | grep -q '\.hwids' \
-              || { echo "automatic UKI has no HWID section" >&2; exit 1; }
-            objcopy --dump-section .hwids=/tmp/omarchy-live.hwids /tmp/omarchy-live.efi
-            strings /tmp/omarchy-live.hwids | grep -qx 'microsoft,surface-pro-12in' \
-              || { echo "automatic UKI HWIDs do not map this Surface to its DTB" >&2; exit 1; }
-            objdump -h /tmp/omarchy-live.efi | grep -q '\.dtbauto' \
-              || { echo "automatic UKI has no DTB-auto payload" >&2; exit 1; }
-            cp /tmp/omarchy-live.efi /tmp/omarchy-live-without-hwids.efi
-            objcopy --remove-section .hwids /tmp/omarchy-live-without-hwids.efi
-            strings /tmp/omarchy-live-without-hwids.efi | grep -qx 'microsoft,surface-pro-12in' \
-              || { echo "automatic UKI lacks the Surface-compatible DTB" >&2; exit 1; }
-            objdump -h /tmp/omarchy-surface-debug.efi | grep -q '\.dtb' \
-              || { echo "Surface diagnostic UKI has no fixed DTB" >&2; exit 1; }
+            python3 configs/aarch64/verify-surface-uki.py /tmp/omarchy-live.efi
+            python3 configs/aarch64/verify-surface-uki.py --diagnostic /tmp/omarchy-surface-debug.efi
           done
           df -h
 

@@ -196,6 +196,8 @@ if [[ $ISO_ARCH == aarch64 ]]; then
     "$build_cache_dir/airootfs/root/surface-pro-12in.dtb"
   install -Dm644 /configs/aarch64/surface-pro-12in-hwid.json \
     "$build_cache_dir/airootfs/root/surface-pro-12in-hwid.json"
+  install -Dm755 /configs/aarch64/verify-surface-uki.py \
+    "$build_cache_dir/airootfs/root/verify-surface-uki.py"
   # The T2 kernel image is absent on aarch64.
   rm -f "$build_cache_dir/airootfs/etc/mkinitcpio.d/linux-t2.preset"
   echo "aarch64: staged live-ISO mkinitcpio overrides"
