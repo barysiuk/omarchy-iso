@@ -12,10 +12,10 @@ on:
 
 jobs:
   packages:
-    uses: barysiuk/omarchy-pkgs/.github/workflows/build-aarch64.yml@5ff0f0c7ee0936bed7ea5625c1c1c770e82941f8
+    uses: barysiuk/omarchy-pkgs/.github/workflows/build-aarch64.yml@cdd80f5bb6196e82b1adb73b64f8c7420077554f
     with:
       pkgs_repository: barysiuk/omarchy-pkgs
-      pkgs_ref: 5ff0f0c7ee0936bed7ea5625c1c1c770e82941f8
+      pkgs_ref: cdd80f5bb6196e82b1adb73b64f8c7420077554f
       # Packages installed from the local aarch64 Omarchy repository.
       packages: >-
         omarchy-keyring ttf-jetbrains-mono-nerd-basic limine-mkinitcpio-hook limine-snapper-sync
@@ -48,7 +48,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: barysiuk/omarchy-pkgs
-          ref: 5ff0f0c7ee0936bed7ea5625c1c1c770e82941f8
+          ref: cdd80f5bb6196e82b1adb73b64f8c7420077554f
           path: sources/omarchy-pkgs
 
       - name: Test integration sources
@@ -116,7 +116,7 @@ jobs:
 
       - name: Inspect ISO
         run: |
-          sudo apt-get install -y -qq xorriso >/dev/null
+          sudo apt-get install -y -qq xorriso squashfs-tools libarchive-tools >/dev/null
           ls -l release/
           for iso in release/*.iso; do
             echo "== $iso"
@@ -132,6 +132,32 @@ jobs:
               -extract /arch/boot/aarch64/omarchy-surface-pro-12in-debug.efi /tmp/omarchy-surface-debug.efi >/dev/null
             python3 configs/aarch64/verify-surface-uki.py /tmp/omarchy-live.efi
             python3 configs/aarch64/verify-surface-uki.py --diagnostic /tmp/omarchy-surface-debug.efi
+            # Inspect the actual airootfs/offline packages, not only recipes:
+            # this catches a missing pre-finalizer dependency before upload.
+            rm -rf /tmp/omarchy-iso-root /tmp/omarchy-surface-pkg /tmp/omarchy-settings-pkg /tmp/omarchy-offline-db
+            xorriso -osirrox on -indev "$iso" \
+              -extract /arch/aarch64/airootfs.sfs /tmp/omarchy-airootfs.sfs >/dev/null
+            unsquashfs -d /tmp/omarchy-iso-root /tmp/omarchy-airootfs.sfs >/dev/null
+            offline=/tmp/omarchy-iso-root/var/cache/omarchy/mirror/offline
+            test -f "$offline/offline.db.tar.gz"
+            mkdir -p /tmp/omarchy-offline-db /tmp/omarchy-surface-pkg /tmp/omarchy-settings-pkg
+            tar -xzf "$offline/offline.db.tar.gz" -C /tmp/omarchy-offline-db
+            surface_pkg=$(printf '%s\n' "$offline"/omarchy-surface-pro-12-*.pkg.tar.* | grep -v '\.sig$')
+            settings_pkg=$(printf '%s\n' "$offline"/omarchy-settings-dev-*.pkg.tar.* | grep -v '\.sig$')
+            test -n "$surface_pkg"; test -n "$settings_pkg"
+            bsdtar -xOf "$surface_pkg" .PKGINFO | grep -Fx 'depend = snapper'
+            bsdtar -xOf "$surface_pkg" .PKGINFO | grep -Fx 'depend = limine-snapper-sync'
+            bsdtar -xf "$surface_pkg" -C /tmp/omarchy-surface-pkg
+            bsdtar -xf "$settings_pkg" -C /tmp/omarchy-settings-pkg
+            grep -Fqx 'ENABLE_UKI=yes' /tmp/omarchy-surface-pkg/etc/limine-entry-tool.d/90-omarchy-surface-pro-12.conf
+            grep -Fqx 'CUSTOM_UKI_NAME=omarchy' /tmp/omarchy-surface-pkg/etc/limine-entry-tool.d/90-omarchy-surface-pro-12.conf
+            grep -Fqx 'MKINITCPIO_FALLBACK=yes' /tmp/omarchy-surface-pkg/etc/limine-entry-tool.d/90-omarchy-surface-pro-12.conf
+            grep -Fqx 'KERNEL_CMDLINE[default]+="initramfs_async=0 clk_ignore_unused pd_ignore_unused arm64.nopauth"' /tmp/omarchy-surface-pkg/etc/limine-entry-tool.d/90-omarchy-surface-pro-12.conf
+            test -x /tmp/omarchy-surface-pkg/etc/boot/hooks/pre.d/95-omarchy-surface-pro-12
+            test -f /tmp/omarchy-settings-pkg/usr/share/omarchy/default/limine/default.conf
+            test -f /tmp/omarchy-settings-pkg/usr/share/omarchy/default/limine/limine.conf
+            grep -Fq 'ENABLE_UKI=yes' /tmp/omarchy-iso-root/usr/share/omarchy-iso/orchestrator/phases_impl.py
+            grep -Fq '_validate_surface_boot' /tmp/omarchy-iso-root/usr/share/omarchy-iso/orchestrator/phases_impl.py
           done
           df -h
 
