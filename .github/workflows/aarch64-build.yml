@@ -12,14 +12,14 @@ on:
 
 jobs:
   packages:
-    uses: birkskyum/omarchy-pkgs/.github/workflows/build-aarch64.yml@d049fb66c50c02a2dcf92dd51289261d35e22dec
+    uses: barysiuk/omarchy-pkgs/.github/workflows/build-aarch64.yml@bb6a772b300a7b45cd5db3851a93cd6f29845c64
     with:
-      pkgs_repository: birkskyum/omarchy-pkgs
-      pkgs_ref: d049fb66c50c02a2dcf92dd51289261d35e22dec
+      pkgs_repository: barysiuk/omarchy-pkgs
+      pkgs_ref: bb6a772b300a7b45cd5db3851a93cd6f29845c64
       # Packages installed from the local aarch64 Omarchy repository.
       packages: >-
         omarchy-keyring ttf-jetbrains-mono-nerd-basic limine-mkinitcpio-hook limine-snapper-sync
-        linux-aarch64-pkgbase-shim qcom-firmware-extract omarchy-settings omarchy omarchy-nvim
+        linux-aarch64-pkgbase-shim qcom-firmware-extract omarchy-surface-pro-12 omarchy-settings omarchy omarchy-nvim
         aether cliamp herdr localsend-bin mise-bin omacalc omacut omawrite omarchy-chromium-bin
         ttfx yay tobi-try ttf-ia-writer ufw-docker xdg-terminal-exec yaru-icon-theme
         tzupdate tensaku hyprtoolkit hyprland-guiutils hyprland hyprland-preview-share-picker
@@ -47,8 +47,8 @@ jobs:
       - name: Checkout pinned package recipes
         uses: actions/checkout@v4
         with:
-          repository: birkskyum/omarchy-pkgs
-          ref: d049fb66c50c02a2dcf92dd51289261d35e22dec
+          repository: barysiuk/omarchy-pkgs
+          ref: bb6a772b300a7b45cd5db3851a93cd6f29845c64
           path: sources/omarchy-pkgs
 
       - name: Test integration sources

@@ -146,21 +146,29 @@ EARLY_BOOTSTRAP_AARCH64_PACKAGES = [
     "linux-aarch64-pkgbase-shim",
 ]
 
+SURFACE_PACKAGE = "omarchy-surface-pro-12"
 
-def _early_bootstrap_packages() -> list[str]:
+
+def _early_bootstrap_packages(ctx: InstallContext | None = None) -> list[str]:
     packages = [*EARLY_BOOTSTRAP_BASE_PACKAGES, _omarchy_settings_package()]
     if platform.machine() == "aarch64":
         packages.extend(EARLY_BOOTSTRAP_AARCH64_PACKAGES)
+    if platform.machine() == "aarch64" and _hardware_profile_from_ctx(ctx) == "surface-pro-12":
+        packages.append(SURFACE_PACKAGE)
     return packages
+
+
+def _hardware_profile_from_ctx(ctx=None) -> str | None:
+    return (ctx.omarchy_install.get("hardware_profile") if ctx is not None else None)
 
 
 def _early_user_seed_packages() -> list[str]:
     return [_omarchy_nvim_package()]
 
 
-def _early_packages() -> list[str]:
+def _early_packages(ctx: InstallContext | None = None) -> list[str]:
     return [
-        *_early_bootstrap_packages(),
+        *_early_bootstrap_packages(ctx),
         *EARLY_LUAROCKS_PACKAGES,
         *_early_user_seed_packages(),
     ]
@@ -310,7 +318,7 @@ def arch_install_system(ctx: InstallContext) -> None:
                 installer.setup_swap(algo=config.swap.algorithm)
                 _drop_archinstall_zram_conf(ctx)
 
-            _install_early_packages(installer)
+            _install_early_packages(installer, ctx)
             _configure_limine_boot(ctx, installer, config)
 
             info("› creating user (with /etc/skel populated)")
@@ -580,6 +588,16 @@ def _write_limine_defaults(
     default_text = re.sub(r'^ESP_PATH=.*$', f'ESP_PATH="{esp_mount}"', default_text, flags=re.MULTILINE)
     if enable_fallback is not None:
         default_text = default_text.rstrip() + f"\nENABLE_LIMINE_FALLBACK={'yes' if enable_fallback else 'no'}\n"
+    # The entry tool's highest-priority config is this file.  Re-state the
+    # package settings here so it cannot replace the package fragment.
+    if _hardware_profile_from_ctx(ctx) == "surface-pro-12":
+        # ConfigReader loads /etc/default/limine last. Repeating the supported
+        # append here means even a template using KERNEL_CMDLINE[default]= does
+        # not erase the Surface package fragment's production arguments.
+        default_text = default_text.rstrip() + (
+            "\nMKINITCPIO_FALLBACK=yes\n"
+            'KERNEL_CMDLINE[default]+="initramfs_async=0 clk_ignore_unused pd_ignore_unused arm64.nopauth"\n'
+        )
     if not arch.has_uefi():
         default_text = default_text.rstrip() + "\nENABLE_UKI=no\nENABLE_LIMINE_FALLBACK=no\n"
 
@@ -656,8 +674,8 @@ def _drop_archinstall_zram_conf(ctx: InstallContext) -> None:
     zram_conf.unlink(missing_ok=True)
 
 
-def _install_early_packages(installer) -> None:
-    bootstrap_packages = _early_bootstrap_packages()
+def _install_early_packages(installer, ctx: InstallContext) -> None:
+    bootstrap_packages = _early_bootstrap_packages(ctx)
     user_seed_packages = _early_user_seed_packages()
 
     info(f"› installing early Omarchy packages: {', '.join(bootstrap_packages)}")
@@ -759,7 +777,7 @@ def _runtime_package_list(ctx: InstallContext) -> list[str]:
     base package list that isn't already installed early."""
     base_pkgs_file = Path("/usr/share/omarchy-iso/omarchy-base.packages")
     pkgs = [_omarchy_runtime_package()]
-    already_installed = set(_early_packages()) | {
+    already_installed = set(_early_packages(ctx)) | {
         _omarchy_runtime_package(),
         _omarchy_settings_package(),
         _omarchy_nvim_package(),
@@ -917,7 +935,7 @@ def _write_pre_mounted_limine_defaults(ctx: InstallContext) -> None:
         ctx,
         cmdline,
         esp_mount=boot["esp_mount"],
-        enable_fallback=bool(boot.get("enable_fallback")),
+        enable_fallback=bool(boot.get("enable_fallback")) or _hardware_profile_from_ctx(ctx) == "surface-pro-12",
     )
 
 
@@ -1718,6 +1736,9 @@ def validate_boot(ctx: InstallContext) -> None:
         if not any(uki.exists() and uki.stat().st_size for uki in ukis):
             raise RuntimeError(f"{' / '.join(str(uki) for uki in ukis)} missing or empty")
 
+        if _hardware_profile_from_ctx(ctx) == "surface-pro-12":
+            _validate_surface_boot(ctx, uki_dir, uki_prefix, candidates, esp_mount)
+
         post = _read_efibootmgr()
         if not _find_label_entries(post["entries"], "Limine"):
             raise RuntimeError("no 'Limine' entry registered in efibootmgr")
@@ -1727,6 +1748,29 @@ def validate_boot(ctx: InstallContext) -> None:
 
     if ctx.defer_provisioning:
         _validate_provisioning_state(ctx)
+
+
+def _validate_surface_boot(ctx: InstallContext, uki_dir: Path, prefix: str, kernels: list[str], esp_mount: Path) -> None:
+    dtb = ctx.target / "usr/lib/omarchy-surface-pro-12/x1p42100-microsoft-sp12in.dtb"
+    fragment = ctx.target / "etc/limine-entry-tool.d/90-omarchy-surface-pro-12.conf"
+    # The ISO owns the verifier so package revisions cannot silently loosen the
+    # pre-reboot check. It is staged alongside the live verifier.
+    verifier = Path("/usr/share/omarchy-iso/verify-surface-uki.py")
+    if not verifier.is_file():
+        verifier = ctx.target / "usr/lib/omarchy-surface-pro-12/verify-surface-uki.py"
+    if not all(path.is_file() for path in (dtb, fragment, verifier)):
+        raise RuntimeError("Surface support package or its fixed-DTB artifacts are missing")
+    if hashlib.sha256(dtb.read_bytes()).hexdigest() != "d7ed4b073c7344cb0bb2c3f7d00655df60b473588a5c0364af54537dc2c672c7":
+        raise RuntimeError("Surface package DTB has an unexpected hash")
+    for kernel in kernels:
+        for suffix in ("", "-fallback"):
+            uki = uki_dir / f"{prefix}_{kernel}{suffix}.efi"
+            if not uki.is_file() or uki.stat().st_size == 0:
+                raise RuntimeError(f"Surface {suffix or 'normal'} UKI missing: {uki}")
+            subprocess.run(["python3", str(verifier), "--installed", str(uki)], check=True)
+    fallback = esp_mount / "EFI/BOOT/BOOTAA64.EFI"
+    if not fallback.is_file() or fallback.stat().st_size == 0:
+        raise RuntimeError(f"Surface EFI fallback loader missing: {fallback}")
 
 
 def _validate_provisioning_state(ctx: InstallContext) -> None:

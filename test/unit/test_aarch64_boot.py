@@ -22,6 +22,12 @@ class Aarch64BootTest(unittest.TestCase):
                 packages = phases_impl._early_bootstrap_packages()
                 self.assertEqual("linux-aarch64-pkgbase-shim" in packages, arch == "aarch64")
 
+    def test_surface_package_is_selected_only_for_confirmed_profile(self):
+        ctx = types.SimpleNamespace(omarchy_install={"hardware_profile": "surface-pro-12"})
+        with mock.patch.object(phases_impl.platform, "machine", return_value="aarch64"):
+            self.assertIn(phases_impl.SURFACE_PACKAGE, phases_impl._early_bootstrap_packages(ctx))
+            self.assertNotIn(phases_impl.SURFACE_PACKAGE, phases_impl._early_bootstrap_packages())
+
     def test_firmware_copy_repairs_partial_target_on_retry(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

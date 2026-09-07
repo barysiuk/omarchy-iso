@@ -472,6 +472,21 @@ detect_kernel() {
   fi
 }
 
+# Required fields make this intentionally narrower than "any Surface". Board
+# facts corroborate the match when firmware exposes both, but are optional.
+detect_hardware_profile() {
+  local d vendor name
+  for d in /sys/class/dmi/id /sys/devices/virtual/dmi/id; do [[ -d $d ]] && break; done
+  [[ -d $d ]] || return 0
+  [[ $(<"$d/sys_vendor" 2>/dev/null) == "Microsoft Corporation" ]] || return 0
+  [[ $(<"$d/product_family" 2>/dev/null) == "Surface" ]] || return 0
+  [[ $(<"$d/product_name" 2>/dev/null) == "Surface Pro 12in 1st Ed with Snapdragon" ]] || return 0
+  [[ $(<"$d/product_sku" 2>/dev/null) == "Surface_Pro_12in_1st_Ed_with_Snapdragon_2110" ]] || return 0
+  vendor=$(<"$d/board_vendor" 2>/dev/null || true); name=$(<"$d/board_name" 2>/dev/null || true)
+  [[ -z $vendor || -z $name || ( $vendor == "Microsoft Corporation" && $name == "Surface Pro 12in 1st Ed with Snapdragon" ) ]] || return 0
+  printf 'surface-pro-12'
+}
+
 # wait_for_device lives in disk-partitioning.sh: it now reports failure, and
 # every caller here aborts on it.
 
@@ -854,12 +869,13 @@ run_partition_execute() {
     "custom_commands": [],
     "omarchy_install": {
         "mode": "protected",
+        "hardware_profile": "$(detect_hardware_profile)",
         "target_mount": "/mnt",
         "boot": {
             "esp_mount": "$esp_mount_in_target",
             "esp_path": "/EFI/limine",
             "efi_binary": "$limine_efi_binary",
-            "enable_fallback": false
+            "enable_fallback": $([[ $(detect_hardware_profile) == surface-pro-12 ]] && echo true || echo false)
         },
         "storage": {
             "esp_device": "$efi_dev",
@@ -1190,6 +1206,7 @@ cat <<-_EOF_ >user_configuration.json
     "custom_commands": [],
     "omarchy_install": {
         "mode": "full_disk",
+        "hardware_profile": "$(detect_hardware_profile)",
         "defer_provisioning": $defer_provisioning,
         "target_mount": "/mnt",
         "boot": {

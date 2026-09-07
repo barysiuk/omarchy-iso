@@ -11,6 +11,7 @@ import secrets
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from .hardware import detect_hardware_profile
 
 # Select Limine EFI filenames for the target architecture.
 _LIMINE_EFI_ARCH = {
@@ -61,6 +62,14 @@ class InstallContext:
         creds_path = Path(creds_str)
         user_configuration = json.loads(config_path.read_text())
         omarchy_install = user_configuration.get("omarchy_install") or _default_omarchy_install(user_configuration)
+        requested_profile = omarchy_install.get("hardware_profile")
+        live_profile = detect_hardware_profile()
+        # A JSON file can request no profile, but cannot make arbitrary hardware
+        # receive the Surface boot package.  This is intentionally live-only.
+        if requested_profile and requested_profile != live_profile:
+            raise RuntimeError(f"hardware_profile {requested_profile!r} does not match this live machine")
+        if live_profile:
+            omarchy_install["hardware_profile"] = live_profile
 
         # Deferred provisioning: the whole system installs but user creation is deferred to
         # first boot. Selected by the configurator (omarchy_install.defer_provisioning) or by

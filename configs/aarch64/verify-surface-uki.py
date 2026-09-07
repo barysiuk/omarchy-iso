@@ -2,6 +2,7 @@
 """Verify the binary HWID and DTB payloads required by the Surface live UKI."""
 
 import argparse
+import hashlib
 import struct
 import sys
 import uuid
@@ -9,6 +10,9 @@ from pathlib import Path
 
 
 COMPATIBLE = b"microsoft,surface-pro-12in\0"
+DTB_SHA256 = "d7ed4b073c7344cb0bb2c3f7d00655df60b473588a5c0364af54537dc2c672c7"
+REQUIRED_INSTALLED_ARGS = ("initramfs_async=0", "clk_ignore_unused", "pd_ignore_unused", "arm64.nopauth")
+FORBIDDEN_INSTALLED_ARGS = ("archiso", "systemd.tpm2_wait=0", "modprobe.blacklist=qcom_q6v5_pas", "debug")
 CHIDS = {
     uuid.UUID(value).bytes_le
     for value in (
@@ -62,13 +66,36 @@ def hwid_mappings(payload):
 
 
 def is_surface_dtb(payload):
-    return payload.startswith(b"\xd0\r\xfe\xed") and COMPATIBLE in payload
+    return payload.startswith(b"\xd0\r\xfe\xed") and COMPATIBLE in payload[:struct.unpack_from(">I", payload, 4)[0]]
 
 
-def verify(path, diagnostic=False):
+def exact_surface_dtb(payload):
+    if not payload.startswith(b"\xd0\r\xfe\xed"):
+        return False
+    size = struct.unpack_from(">I", payload, 4)[0]
+    tree = payload[:size]
+    return size <= len(payload) and COMPATIBLE in tree and hashlib.sha256(tree).hexdigest() == DTB_SHA256
+
+
+def verify(path, diagnostic=False, installed=False):
     by_name = {}
     for name, payload in sections(Path(path).read_bytes()):
         by_name.setdefault(name, []).append(payload)
+    if installed:
+        dtbs = by_name.get(b".dtb", [])
+        if len(dtbs) != 1 or not exact_surface_dtb(dtbs[0]):
+            raise ValueError("installed UKI lacks exactly one exact fixed Surface DTB")
+        if b".dtbauto" in by_name or b".hwids" in by_name:
+            raise ValueError("installed UKI must not use DTB-auto/HWID selection")
+        cmdlines = by_name.get(b".cmdline", [])
+        if len(cmdlines) != 1:
+            raise ValueError("installed UKI lacks exactly one .cmdline section")
+        cmdline = cmdlines[0].split(b"\0", 1)[0].decode(errors="replace").split()
+        missing = [arg for arg in REQUIRED_INSTALLED_ARGS if arg not in cmdline]
+        forbidden = [arg for arg in FORBIDDEN_INSTALLED_ARGS if arg in cmdline]
+        if missing or forbidden:
+            raise ValueError(f"installed cmdline missing={missing} forbidden={forbidden}")
+        return
     if diagnostic:
         dtbs = by_name.get(b".dtb", [])
         if len(dtbs) != 1 or not is_surface_dtb(dtbs[0]):
@@ -88,9 +115,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("uki", type=Path)
     parser.add_argument("--diagnostic", action="store_true")
+    parser.add_argument("--installed", action="store_true")
     args = parser.parse_args()
     try:
-        verify(args.uki, args.diagnostic)
+        verify(args.uki, args.diagnostic, args.installed)
     except (IndexError, OSError, ValueError, struct.error) as error:
         sys.exit(f"verify-surface-uki: {error}")
 

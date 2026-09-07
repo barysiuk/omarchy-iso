@@ -198,6 +198,8 @@ if [[ $ISO_ARCH == aarch64 ]]; then
     "$build_cache_dir/airootfs/root/surface-pro-12in-hwid.json"
   install -Dm755 /configs/aarch64/verify-surface-uki.py \
     "$build_cache_dir/airootfs/root/verify-surface-uki.py"
+  install -Dm755 /configs/aarch64/verify-surface-uki.py \
+    "$build_cache_dir/airootfs/usr/share/omarchy-iso/verify-surface-uki.py"
   # The T2 kernel image is absent on aarch64.
   rm -f "$build_cache_dir/airootfs/etc/mkinitcpio.d/linux-t2.preset"
   echo "aarch64: staged live-ISO mkinitcpio overrides"
@@ -362,6 +364,7 @@ mapfile -t all_packages < <(
     # Always include the selected Omarchy packages so the target install can
     # find the runtime and companion packages in the offline mirror.
     printf '%s\n' "$OMARCHY_RUNTIME_PACKAGE" "$OMARCHY_SETTINGS_PACKAGE" "$OMARCHY_NVIM_PACKAGE"
+    [[ $ISO_ARCH == aarch64 ]] && printf '%s\n' omarchy-surface-pro-12
   } | filter_arch_packages | sort -u
 )
 
@@ -374,7 +377,8 @@ if [[ -n ${LOCAL_OMARCHY_BUILD:-} ]]; then
       grep -Fxv \
         -e "$OMARCHY_RUNTIME_PACKAGE" \
         -e "$OMARCHY_SETTINGS_PACKAGE" \
-        -e "$OMARCHY_NVIM_PACKAGE" || true
+        -e "$OMARCHY_NVIM_PACKAGE" \
+        -e omarchy-surface-pro-12 || true
   )
 fi
 
@@ -410,8 +414,9 @@ mapfile -t required_package_files <<< "$resolved_package_files"
 # checkouts. Add those exact artifacts back to the keep-set after verifying
 # that the local build left exactly one file for each selected package name.
 if [[ -n ${LOCAL_OMARCHY_BUILD:-} ]]; then
-  for local_package_name in \
-    "$OMARCHY_RUNTIME_PACKAGE" "$OMARCHY_SETTINGS_PACKAGE" "$OMARCHY_NVIM_PACKAGE"; do
+  local_packages=("$OMARCHY_RUNTIME_PACKAGE" "$OMARCHY_SETTINGS_PACKAGE" "$OMARCHY_NVIM_PACKAGE")
+  [[ $ISO_ARCH == aarch64 ]] && local_packages+=(omarchy-surface-pro-12)
+  for local_package_name in "${local_packages[@]}"; do
     local_package_file=""
     for candidate in "$offline_mirror_dir/$local_package_name-"*.pkg.tar.*; do
       [[ -f $candidate && $candidate != *.sig ]] || continue

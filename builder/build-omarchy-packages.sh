@@ -41,6 +41,7 @@ packages=(
   "$OMARCHY_RUNTIME_PACKAGE"
   "$OMARCHY_NVIM_PACKAGE"
 )
+[[ $(uname -m) == aarch64 ]] && packages+=(omarchy-surface-pro-12)
 
 # Local-source packages must replace every cached build of the same package,
 # even when the checkout's generated pkgver sorts below a published build.
