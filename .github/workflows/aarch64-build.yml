@@ -12,10 +12,10 @@ on:
 
 jobs:
   packages:
-    uses: barysiuk/omarchy-pkgs/.github/workflows/build-aarch64.yml@cdd80f5bb6196e82b1adb73b64f8c7420077554f
+    uses: barysiuk/omarchy-pkgs/.github/workflows/build-aarch64.yml@335d4f7490751839270adad2c6185426b8929876
     with:
       pkgs_repository: barysiuk/omarchy-pkgs
-      pkgs_ref: cdd80f5bb6196e82b1adb73b64f8c7420077554f
+      pkgs_ref: 335d4f7490751839270adad2c6185426b8929876
       # Packages installed from the local aarch64 Omarchy repository.
       packages: >-
         omarchy-keyring ttf-jetbrains-mono-nerd-basic limine-mkinitcpio-hook limine-snapper-sync
@@ -48,7 +48,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: barysiuk/omarchy-pkgs
-          ref: cdd80f5bb6196e82b1adb73b64f8c7420077554f
+          ref: 335d4f7490751839270adad2c6185426b8929876
           path: sources/omarchy-pkgs
 
       - name: Test integration sources
@@ -150,11 +150,15 @@ jobs:
             test -n "$surface_pkg"; test -n "$settings_pkg"
             bsdtar -xOf "$surface_pkg" .PKGINFO | grep -Fx 'depend = snapper'
             bsdtar -xOf "$surface_pkg" .PKGINFO | grep -Fx 'depend = limine-snapper-sync'
+            bsdtar -xOf "$surface_pkg" .PKGINFO | grep -Fx 'depend = systemd-ukify'
             bsdtar -xf "$surface_pkg" -C /tmp/omarchy-surface-pkg
             bsdtar -xf "$settings_pkg" -C /tmp/omarchy-settings-pkg
             grep -Fqx 'ENABLE_UKI=yes' /tmp/omarchy-surface-pkg/etc/limine-entry-tool.d/90-omarchy-surface-pro-12.conf
             grep -Fqx 'CUSTOM_UKI_NAME=omarchy' /tmp/omarchy-surface-pkg/etc/limine-entry-tool.d/90-omarchy-surface-pro-12.conf
             grep -Fqx 'MKINITCPIO_FALLBACK=yes' /tmp/omarchy-surface-pkg/etc/limine-entry-tool.d/90-omarchy-surface-pro-12.conf
+            grep -Fqx 'MKINITCPIO_UKI_OPTIONS="--ukiconfig /etc/kernel/uki-surface-pro-12.conf"' /tmp/omarchy-surface-pkg/etc/limine-entry-tool.d/90-omarchy-surface-pro-12.conf
+            test -f /tmp/omarchy-surface-pkg/etc/kernel/uki-surface-pro-12.conf
+            grep -Fqx 'DeviceTree=/usr/lib/omarchy-surface-pro-12/x1p42100-microsoft-sp12in.dtb' /tmp/omarchy-surface-pkg/etc/kernel/uki-surface-pro-12.conf
             grep -Fqx 'KERNEL_CMDLINE[default]+="initramfs_async=0 clk_ignore_unused pd_ignore_unused arm64.nopauth"' /tmp/omarchy-surface-pkg/etc/limine-entry-tool.d/90-omarchy-surface-pro-12.conf
             test -x /tmp/omarchy-surface-pkg/etc/boot/hooks/pre.d/95-omarchy-surface-pro-12
             test -f /tmp/omarchy-settings-pkg/usr/share/omarchy/default/limine/default.conf
