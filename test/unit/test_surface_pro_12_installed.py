@@ -57,3 +57,20 @@ class SurfaceHardwareTest(unittest.TestCase):
             self.assertIn('CUSTOM_UKI_NAME=omarchy', rendered)
             self.assertIn('arm64.nopauth', rendered)
             self.assertEqual((target / 'boot/limine.conf').read_text(), 'Omarchy\n')
+
+    def test_encrypted_surface_cmdline_uses_systemd_luks_name(self):
+        ctx = types.SimpleNamespace(omarchy_install={'storage': {
+            'luks_uuid': '11111111-2222-3333-4444-555555555555',
+            'root_mapper': '/dev/mapper/omarchy_root',
+        }})
+        cmdline = phases_impl._build_pre_mounted_cmdline(ctx, 'btrfs-uuid')
+        self.assertIn('rd.luks.name=11111111-2222-3333-4444-555555555555=omarchy_root', cmdline)
+        self.assertIn('root=/dev/mapper/omarchy_root', cmdline)
+        self.assertNotIn('cryptdevice=', cmdline)
+
+    def test_surface_sd_encrypt_dropin_replaces_filesystems_last(self):
+        hooks = ['base', 'systemd', 'autodetect', 'microcode', 'modconf', 'kms', 'keyboard', 'sd-vconsole', 'block', 'filesystems', 'fsck']
+        hooks[hooks.index('filesystems'):hooks.index('filesystems') + 1] = ['sd-encrypt', 'filesystems']
+        self.assertLess(hooks.index('keyboard'), hooks.index('sd-encrypt'))
+        self.assertLess(hooks.index('sd-vconsole'), hooks.index('sd-encrypt'))
+        self.assertLess(hooks.index('sd-encrypt'), hooks.index('filesystems'))

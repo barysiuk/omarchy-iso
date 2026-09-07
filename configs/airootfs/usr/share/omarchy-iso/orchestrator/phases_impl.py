@@ -915,7 +915,7 @@ def _build_pre_mounted_cmdline(ctx: InstallContext, btrfs_uuid: str) -> str:
     if storage.get("luks_uuid"):
         root_mapper = storage.get("root_mapper") or "/dev/mapper/omarchy_root"
         return (
-            f"cryptdevice=UUID={storage['luks_uuid']}:omarchy_root "
+            f"rd.luks.name={storage['luks_uuid']}=omarchy_root "
             f"root={root_mapper} zswap.enabled=0 "
             "rootflags=subvol=@ rw rootfstype=btrfs"
         )
@@ -1369,8 +1369,8 @@ def finalize_limine_boot(ctx: InstallContext) -> None:
     )
     if "Omarchy" not in limine_conf.read_text():
         raise RuntimeError(f"{limine_conf} has no Omarchy entry")
-    if "cryptdevice=" in cmdline and "cryptdevice=" not in limine_conf.read_text():
-        raise RuntimeError(f"encrypted install but {limine_conf} has no cryptdevice=")
+    if "rd.luks.name=" in cmdline and "rd.luks.name=" not in limine_conf.read_text():
+        raise RuntimeError(f"encrypted install but {limine_conf} has no rd.luks.name=")
 
 
 def _strip_shell_quotes(value: str) -> str:
@@ -1715,8 +1715,8 @@ def validate_boot(ctx: InstallContext) -> None:
     if "Omarchy" not in limine_conf_text:
         raise RuntimeError(f"{limine_conf} has no Omarchy entry")
 
-    if ctx.encrypt and "cryptdevice=" not in limine_conf_text:
-        raise RuntimeError(f"Encrypted install but {limine_conf} has no cryptdevice=")
+    if ctx.encrypt and "rd.luks.name=" not in limine_conf_text:
+        raise RuntimeError(f"Encrypted install but {limine_conf} has no rd.luks.name=")
 
     kernel_cmdline = ctx.target / "etc" / "kernel" / "cmdline"
     if not kernel_cmdline.exists():
