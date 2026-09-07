@@ -595,7 +595,7 @@ def _write_limine_defaults(
         # append here means even a template using KERNEL_CMDLINE[default]= does
         # not erase the Surface package fragment's production arguments.
         default_text = default_text.rstrip() + (
-            "\nMKINITCPIO_FALLBACK=yes\n"
+            "\nENABLE_UKI=yes\nCUSTOM_UKI_NAME=omarchy\nMKINITCPIO_FALLBACK=yes\n"
             'KERNEL_CMDLINE[default]+="initramfs_async=0 clk_ignore_unused pd_ignore_unused arm64.nopauth"\n'
         )
     if not arch.has_uefi():
@@ -1356,6 +1356,11 @@ def finalize_limine_boot(ctx: InstallContext) -> None:
         raise RuntimeError(f"{limine_conf} missing")
 
     subprocess.run(["arch-chroot", str(ctx.target), "limine-update"], check=True)
+    if _hardware_profile_from_ctx(ctx) == "surface-pro-12":
+        ukis = sorted((esp_root / "EFI" / "Linux").glob("*.efi"))
+        info("› Surface UKIs after limine-update: " + (", ".join(
+            str(path.relative_to(ctx.target)) for path in ukis
+        ) or "none"))
 
     subprocess.run(
         ["arch-chroot", str(ctx.target), "btrfs", "quota", "disable", "/"],
@@ -1767,7 +1772,10 @@ def _validate_surface_boot(ctx: InstallContext, uki_dir: Path, prefix: str, kern
             uki = uki_dir / f"{prefix}_{kernel}{suffix}.efi"
             if not uki.is_file() or uki.stat().st_size == 0:
                 raise RuntimeError(f"Surface {suffix or 'normal'} UKI missing: {uki}")
-            subprocess.run(["python3", str(verifier), "--installed", str(uki)], check=True)
+            try:
+                subprocess.run(["python3", str(verifier), "--installed", str(uki)], check=True)
+            except subprocess.CalledProcessError as exc:
+                raise RuntimeError(f"Surface UKI validation failed for {uki}: exit {exc.returncode}") from exc
     fallback = esp_mount / "EFI/BOOT/BOOTAA64.EFI"
     if not fallback.is_file() or fallback.stat().st_size == 0:
         raise RuntimeError(f"Surface EFI fallback loader missing: {fallback}")
